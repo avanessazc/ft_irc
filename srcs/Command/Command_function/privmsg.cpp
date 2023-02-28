@@ -1,0 +1,65 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   privmsg.cpp                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: abesombe <abesombe@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2022/05/03 12:44:29 by abesombe          #+#    #+#             */
+/*   Updated: 2022/06/19 12:26:16 by abesombe         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "Command.hpp"
+
+/*
+ Command: PRIVMSG
+  Parameters: <target>{,<target>} <text to be sent>
+The PRIVMSG command is used to send private messages between users, as well as to send messages to channels. <target> is the nickname of a client or the name of a channel.
+*/
+
+e_error	Command::_privmsg	(void)
+{
+  bool voice = false;
+  String nickname = (*_users_it)->get_nickname();
+	if (this->_cmd.size() < 3)
+	  return (this->_err_needmoreparams(_cmd[0]));
+	else
+	{
+		if (has_begin_hashtag(this->_cmd[1]))
+		{
+			if (!this->_chan_exist(_cmd[1]))
+					return(_err_nosuchchannel(_cmd[1]));
+					
+			this->_chans_it = this->_chans.find(_cmd[1]);
+			bool moderated = _chans[_cmd[1]]->get_specific_mode(CHANMODE_m);
+			Channel & cur_chan = *((*_chans_it).second);
+			if (user_exist_in_chan(cur_chan, (*_users_it)->get_nickname()))
+			{
+				voice = (*_users_it)->get_chan_usermode_vec(this->_cmd[1])[USERMODE_v];
+			}
+			_chan_ban_list = &cur_chan.get_chan_ban_list();
+			_is_on_ban_list = (_chan_ban_list->find(nickname) != _chan_ban_list->end());
+			bool chan_operator = is_operator(nickname, *_chans_it->second);
+			bool n_activated = _chans[_cmd[1]]->get_specific_mode(CHANMODE_n);
+			
+			if (!user_exist_in_chan(cur_chan, nickname) && n_activated == true)
+				return (_err_cannotsendtochan(ERR_CHANMODENOEXTMSG));		
+					
+			if (chan_operator == false && moderated == true && voice == false) 
+				return (_err_cannotsendtochan(ERR_CHANMODERATED));
+
+			if (chan_operator == false && _is_on_ban_list) 
+				return (_err_cannotsendtochan(ERR_NOMSGWHILEBANNED));
+
+		}
+		else if (!has_begin_hashtag(this->_cmd[1]))
+		{
+			if (this->_user_exist(_cmd[1]) == false)
+				return (_err_nosuchnick(_cmd[1]));
+		}
+		String msg = concat_last_args(2);
+		return (this->_cmd_privmsg(msg));
+	  }
+	return (SUCCESS);
+}

@@ -1,0 +1,9 @@
+objs/*
+objs
+ircserv
+client
+*.swp
+test
+test/*
+test.cpp
+tmp
